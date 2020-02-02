@@ -44,15 +44,15 @@ class PhysXConan(ConanFile):
     settings = "os", "compiler", "arch", "build_type"
     short_paths = True
     options = {
-        "build_type": ["debug", "checked", "profile", "release"],
         "shared": [True, False],
+        "release_build_type": ["profile", "release"],
         "enable_simd": [True, False],
         "enable_float_point_precise_math": [True, False],
         "fPIC": [True, False],
     }
     default_options = {
-        "build_type": "release",
         "shared": True,
+        "release_build_type": "release",
         "enable_simd": True,
         "enable_float_point_precise_math": False,
         "fPIC": True,
@@ -68,46 +68,41 @@ class PhysXConan(ConanFile):
 
     def config_options(self):
         del self.options.fPIC # fpic is managed by physx build process (in physx/source/compiler/cmake/CMakeLists.txt)
+        if self.settings.build_type != "Release":
+            del self.options.release_build_type
         if self.settings.os != "Windows":
             del self.options.enable_float_point_precise_math
-        if self.settings.os != "Windows" and self.settings.os != "Android":
+        if self.settings.os not in ["Windows", "Android"]:
             del self.options.enable_simd
 
     def configure(self):
-        supported_os = ["Windows", "Linux", "Macos", "Android", "iOS"]
         os = str(self.settings.os)
-        if os not in supported_os:
-            raise ConanInvalidConfiguration("%s %s is not supported on %s" % (self.name, self.version, os))
+        if os not in ["Windows", "Linux", "Macos", "Android", "iOS"]:
+            raise ConanInvalidConfiguration("{0} {1} is not supported on {2}".format(self.name, self.version, os))
+
+        build_type = str(self.settings.build_type)
+        if build_type not in ["Debug", "RelWithDebInfo", "Release"]:
+            raise ConanInvalidConfiguration("{0} {1} does not support {2} build type".format(self.name, self.version,
+                                                                                             build_type))
 
         compiler = str(self.settings.compiler)
         if os == "Windows" and compiler != "Visual Studio":
-            raise ConanInvalidConfiguration("%s %s does not support %s on %s" % (self.name, self.version, compiler, os))
-
-        settings_build_type = str(self.settings.build_type)
-        options_build_type = str(self.options.build_type)
-        if options_build_type == "debug":
-            if settings_build_type != "Debug":
-                raise ConanInvalidConfiguration("Settings build_type=%s is not compatible " \
-                                                "with physx:build_type=%s" % (settings_build_type, options_build_type))
-        elif settings_build_type == "Debug":
-            raise ConanInvalidConfiguration("Settings build_type=%s is not compatible " \
-                                            "with physx:build_type=%s" % (settings_build_type, options_build_type))
+            raise ConanInvalidConfiguration("{0} {1} does not support {2} on {3}".format(self.name, self.version,
+                                                                                         compiler, os))
 
         if compiler == "Visual Studio":
             if tools.Version(self.settings.compiler.version) < 9:
-                raise ConanInvalidConfiguration("%s %s does not support Visual Studio < 9" % (self.name, self.version))
+                raise ConanInvalidConfiguration("{0} {1} does not support Visual Studio < 9".format(self.name,
+                                                                                                    self.version))
 
             runtime = str(self.settings.compiler.runtime)
-            if options_build_type == "debug":
-                if runtime != "MDd" and runtime != "MTd":
+            if build_type == "Debug":
+                if runtime not in ["MDd", "MTd"]:
                     raise ConanInvalidConfiguration("Visual Studio Compiler runtime MDd or MTd " \
-                                                    "is required when physx:build_type=%s" % options_build_type)
-            elif runtime != "MD" and runtime != "MT":
+                                                    "is required for {0} build type".format(build_type))
+            elif runtime not in ["MD", "MT"]:
                 raise ConanInvalidConfiguration("Visual Studio Compiler runtime MD or MT " \
-                                                "is required when physx:build_type=%s" % options_build_type)
-
-    def package_id(self):
-        self.info.settings.build_type = str(self.options.build_type)
+                                                "is required for {0} build type".format(build_type))
 
     def source(self):
         tools.get(**self.conan_data["sources"][self.version])
@@ -127,7 +122,7 @@ class PhysXConan(ConanFile):
         cmake.build()
 
     def _configure_cmake(self):
-        cmake = CMake(self, build_type=str(self.options.build_type))
+        cmake = CMake(self, build_type=self._get_physx_build_type())
 
         # Options defined in physx/compiler/public/CMakeLists.txt
         cmake.definitions["TARGET_BUILD_PLATFORM"] = self._get_target_build_platform()
@@ -143,7 +138,7 @@ class PhysXConan(ConanFile):
         cmake.definitions["PHYSX_ROOT_DIR"] = os.path.abspath(os.path.join(self._source_subfolder, "physx")).replace("\\", "/")
 
         # Options defined in physx/source/compiler/cmake/CMakeLists.txt
-        if self.settings.os == "Windows" or self.settings.os == "Android":
+        if self.settings.os in ["Windows", "Android"]:
             cmake.definitions["PX_SCALAR_MATH"] = not self.options.enable_simd # this value doesn't matter on other os
         cmake.definitions["PX_GENERATE_STATIC_LIBRARIES"] = not self.options.shared
         cmake.definitions["PX_EXPORT_LOWLEVEL_PDB"] = False
@@ -184,6 +179,17 @@ class PhysXConan(ConanFile):
         cmake.configure(build_folder=self._build_subfolder)
         return cmake
 
+    def _get_physx_build_type(self):
+        if self.settings.build_type == "Debug":
+            return "debug"
+        elif self.settings.build_type == "RelWithDebInfo":
+            return "checked"
+        elif self.settings.build_type == "Release":
+            if self.options.release_build_type == "profile":
+                return "profile"
+            else:
+                return "release"
+
     def _get_target_build_platform(self):
         return {
             "Windows" : "windows",
@@ -199,7 +205,7 @@ class PhysXConan(ConanFile):
 
         tools.save(os.path.join(self.package_folder, "licenses", "LICENSE"), physx_license)
 
-        out_lib_dir = os.path.join(self.package_folder, "lib", str(self.options.build_type))
+        out_lib_dir = os.path.join(self.package_folder, "lib", self._get_physx_build_type())
         self.copy(pattern="*.a", dst="lib", src=out_lib_dir, keep_path=False)
         self.copy(pattern="*.so", dst="lib", src=out_lib_dir, keep_path=False)
         self.copy(pattern="*.dylib*", dst="lib", src=out_lib_dir, keep_path=False)
@@ -212,9 +218,10 @@ class PhysXConan(ConanFile):
         self._copy_external_bin()
 
     def _copy_external_bin(self):
+        physx_build_type = self._get_physx_build_type()
         if self.settings.os == "Linux" and self.settings.arch == "x86_64":
             external_bin_dir = os.path.join(self._source_subfolder, "physx", "bin", \
-                                            "linux.clang", str(self.options.build_type))
+                                            "linux.clang", physx_build_type)
             self.copy(pattern="*PhysXGpu*.so", dst="lib", src=external_bin_dir, keep_path=False)
         elif self.settings.os == "Windows" and self.settings.compiler == "Visual Studio":
             external_bin_subdir = "win.x86"
@@ -228,27 +235,27 @@ class PhysXConan(ConanFile):
             version = tools.Version(self.settings.compiler.version)
             if version == "12":
                 external_bin_dir = os.path.join(self._source_subfolder, "physx", "bin", \
-                                                external_bin_subdir + "vc120.mt", str(self.options.build_type))
+                                                external_bin_subdir + "vc120.mt", physx_build_type)
                 self.copy(pattern="PhysXDevice*.dll", dst="bin", src=external_bin_dir, keep_path=False)
                 self.copy(pattern="PhysXGpu*.dll", dst="bin", src=external_bin_dir, keep_path=False)
             elif version == "14":
                 external_bin_dir = os.path.join(self._source_subfolder, "physx", "bin", \
-                                                external_bin_subdir + "vc140.mt", str(self.options.build_type))
+                                                external_bin_subdir + "vc140.mt", physx_build_type)
                 self.copy(pattern="PhysXDevice*.dll", dst="bin", src=external_bin_dir, keep_path=False)
                 self.copy(pattern="PhysXGpu*.dll", dst="bin", src=external_bin_dir, keep_path=False)
             elif version == "15":
                 external_bin_dir = os.path.join(self._source_subfolder, "physx", "bin", \
-                                                external_bin_subdir + "vc141.mt", str(self.options.build_type))
+                                                external_bin_subdir + "vc141.mt", physx_build_type)
                 self.copy(pattern="PhysXDevice*.dll", dst="bin", src=external_bin_dir, keep_path=False)
                 external_bin_dir_140 = os.path.join(self._source_subfolder, "physx", "bin", \
-                                                    external_bin_subdir + "vc140.mt", str(self.options.build_type))
+                                                    external_bin_subdir + "vc140.mt", physx_build_type)
                 self.copy(pattern="PhysXGpu*.dll", dst="bin", src=external_bin_dir_140, keep_path=False)
             elif version >= "16":
                 external_bin_dir = os.path.join(self._source_subfolder, "physx", "bin", \
-                                                external_bin_subdir + "vc142.mt", str(self.options.build_type))
+                                                external_bin_subdir + "vc142.mt", physx_build_type)
                 self.copy(pattern="PhysXDevice*.dll", dst="bin", src=external_bin_dir, keep_path=False)
                 external_bin_dir_140 = os.path.join(self._source_subfolder, "physx", "bin", \
-                                                    external_bin_subdir + "vc140.mt", str(self.options.build_type))
+                                                    external_bin_subdir + "vc140.mt", physx_build_type)
                 self.copy(pattern="PhysXGpu*.dll", dst="bin", src=external_bin_dir_140, keep_path=False)
 
     def package_info(self):
@@ -297,16 +304,8 @@ class PhysXConan(ConanFile):
 
     def _get_cpp_info_defines(self):
         defines = []
-        if self.options.build_type == "debug":
-            defines.extend(["PX_DEBUG=1", "PX_CHECHED=1"])
-        elif self.options.build_type == "checked":
-            defines.append("PX_CHECHED=1")
-        elif self.options.build_type == "profile":
-            defines.append("PX_PROFILE=1")
-
         if self.settings.os in ["Windows", "Android"] and not self.options.enable_simd:
             defines.append("PX_SIMD_DISABLED")
-
         if self.settings.os == "Windows" and not self.options.shared:
             defines.append("PX_PHYSX_STATIC_LIB")
 
