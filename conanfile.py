@@ -261,7 +261,6 @@ class PhysXConan(ConanFile):
             self.cpp_info.system_libs.append("log")
 
         self.cpp_info.defines = self._get_cpp_info_defines()
-        self.cpp_info.cxxflags = self._get_cpp_info_cxxflags()
 
         self.cpp_info.name = "PhysX"
 
@@ -305,24 +304,10 @@ class PhysXConan(ConanFile):
         elif self.options.build_type == "profile":
             defines.append("PX_PROFILE=1")
 
-        if self.settings.os == "Windows":
-            if self.options.shared:
-                defines.extend([
-                    "PX_PHYSX_CORE_EXPORTS",
-                    "PX_PHYSX_COOKING_EXPORTS",
-                    "PX_PHYSX_COMMON_EXPORTS",
-                    "PX_PHYSX_FOUNDATION_EXPORTS"
-                ])
-            else:
-                defines.append("PX_PHYSX_STATIC_LIB")
-        elif self.settings.os == "Linux" and not self.options.shared:
+        if self.settings.os in ["Windows", "Android"] and not self.options.enable_simd:
+            defines.append("PX_SIMD_DISABLED")
+
+        if self.settings.os == "Windows" and not self.options.shared:
             defines.append("PX_PHYSX_STATIC_LIB")
 
         return defines
-
-    def _get_cpp_info_cxxflags(self):
-        cxxflags = []
-        if self.settings.compiler == "clang":
-            cxxflags.append("-Wno-undef")
-
-        return cxxflags
