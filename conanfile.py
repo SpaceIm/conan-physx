@@ -114,10 +114,13 @@ class PhysXConan(ConanFile):
             # workaround for permission denied on windows
             time.sleep(10)
             os.rename(extracted_dir, self._source_subfolder)
-
-    def build(self):
         for patch in self.conan_data["patches"][self.version]:
             tools.patch(**patch)
+        tools.replace_in_file(os.path.join(self._source_subfolder, "pxshared", "include", "foundation", "PxPreprocessor.h"),
+                              "#error Exactly one of NDEBUG and _DEBUG needs to be defined!",
+                              "// #error Exactly one of NDEBUG and _DEBUG needs to be defined!")
+
+    def build(self):
         cmake = self._configure_cmake()
         cmake.build()
 
@@ -267,8 +270,6 @@ class PhysXConan(ConanFile):
         elif self.settings.os == "Android":
             self.cpp_info.system_libs.append("log")
 
-        self.cpp_info.defines = self._get_cpp_info_defines()
-
         self.cpp_info.name = "PhysX"
 
     def _get_cpp_info_ordered_libs(self):
@@ -301,12 +302,3 @@ class PhysXConan(ConanFile):
 
         # Flat the list
         return [item for sublist in ordered_libs for item in sublist if sublist] + missing_order_info
-
-    def _get_cpp_info_defines(self):
-        defines = []
-        if self.settings.os in ["Windows", "Android"] and not self.options.enable_simd:
-            defines.append("PX_SIMD_DISABLED")
-        if self.settings.os == "Windows" and not self.options.shared:
-            defines.append("PX_PHYSX_STATIC_LIB")
-
-        return defines
