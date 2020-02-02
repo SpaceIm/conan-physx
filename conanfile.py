@@ -252,6 +252,20 @@ class PhysXConan(ConanFile):
                 self.copy(pattern="PhysXGpu*.dll", dst="bin", src=external_bin_dir_140, keep_path=False)
 
     def package_info(self):
+        self.cpp_info.libs = self._get_cpp_info_ordered_libs()
+        self.output.info("LIBRARIES: %s" % self.cpp_info.libs)
+
+        if self.settings.os == "Linux":
+            self.cpp_info.system_libs.extend(["dl", "pthread", "rt"])
+        elif self.settings.os == "Android":
+            self.cpp_info.system_libs.append("log")
+
+        self.cpp_info.defines = self._get_cpp_info_defines()
+        self.cpp_info.cxxflags = self._get_cpp_info_cxxflags()
+
+        self.cpp_info.name = "PhysX"
+
+    def _get_cpp_info_ordered_libs(self):
         gen_libs = tools.collect_libs(self)
 
         # Libs ordered following linkage order:
@@ -280,19 +294,35 @@ class PhysXConan(ConanFile):
                 missing_order_info.append(real_lib_name)
 
         # Flat the list
-        self.cpp_info.libs = [item for sublist in ordered_libs
-                                      for item in sublist if sublist] + missing_order_info
+        return [item for sublist in ordered_libs for item in sublist if sublist] + missing_order_info
 
-        self.output.info("LIBRARIES: %s" % self.cpp_info.libs)
-        self.output.info("Package folder: %s" % self.package_folder)
+    def _get_cpp_info_defines(self):
+        defines = []
+        if self.options.build_type == "debug":
+            defines.extend(["PX_DEBUG=1", "PX_CHECHED=1"])
+        elif self.options.build_type == "checked":
+            defines.append("PX_CHECHED=1")
+        elif self.options.build_type == "profile":
+            defines.append("PX_PROFILE=1")
 
-        if self.settings.os == "Linux":
-            self.cpp_info.system_libs.append("dl") # for PhysX
+        if self.settings.os == "Windows":
             if self.options.shared:
-                self.cpp_info.system_libs.append("rt") # for PhysXFoundation
+                defines.extend([
+                    "PX_PHYSX_CORE_EXPORTS",
+                    "PX_PHYSX_COOKING_EXPORTS",
+                    "PX_PHYSX_COMMON_EXPORTS",
+                    "PX_PHYSX_FOUNDATION_EXPORTS"
+                ])
             else:
-                self.cpp_info.system_libs.append("pthread") # for PhysXFoundation
-        elif self.settings.os == "Android":
-            self.cpp_info.system_libs.append("log") # for PhysXFoundation
+                defines.append("PX_PHYSX_STATIC_LIB")
+        elif self.settings.os == "Linux" and not self.options.shared:
+            defines.append("PX_PHYSX_STATIC_LIB")
 
-        self.cpp_info.name = "PhysX"
+        return defines
+
+    def _get_cpp_info_cxxflags(self):
+        cxxflags = []
+        if self.settings.compiler == "clang":
+            cxxflags.append("-Wno-undef")
+
+        return cxxflags
