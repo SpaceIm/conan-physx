@@ -221,45 +221,42 @@ class PhysXConan(ConanFile):
         self._copy_external_bin()
 
     def _copy_external_bin(self):
+        external_bin_dir = os.path.join(self._source_subfolder, "physx", "bin")
         physx_build_type = self._get_physx_build_type()
+
         if self.settings.os == "Linux" and self.settings.arch == "x86_64":
-            external_bin_dir = os.path.join(self._source_subfolder, "physx", "bin", \
-                                            "linux.clang", physx_build_type)
-            self.copy(pattern="*PhysXGpu*.so", dst="lib", src=external_bin_dir, keep_path=False)
+            physxgpu_dir = os.path.join(external_bin_dir, "linux.clang", physx_build_type)
+            self.copy(pattern="*PhysXGpu*.so", dst="lib", src=physxgpu_dir, keep_path=False)
         elif self.settings.os == "Windows" and self.settings.compiler == "Visual Studio":
-            external_bin_subdir = "win.x86"
+            version = tools.Version(self.settings.compiler.version)
+            if version < "12":
+                return
+
             if self.settings.arch == "x86":
-                external_bin_subdir += "_32."
+                physxgpu_dir = os.path.join(external_bin_dir, "win.x86_32.vc120.mt", physx_build_type)
+                if version == "12":
+                    physxdevice_dir = os.path.join(external_bin_dir, "win.x86_32.vc120.mt", physx_build_type)
+                elif version == "14":
+                    physxdevice_dir = os.path.join(external_bin_dir, "win.x86_32.vc140.mt", physx_build_type)
+                elif version == "15":
+                    physxdevice_dir = os.path.join(external_bin_dir, "win.x86_32.vc141.mt", physx_build_type)
+                else:
+                    physxdevice_dir = os.path.join(external_bin_dir, "win.x86_32.vc142.mt", physx_build_type)
             elif self.settings.arch == "x86_64":
-                external_bin_subdir += "_64."
+                physxgpu_dir = os.path.join(external_bin_dir, "win.x86_64.vc140.mt", physx_build_type)
+                if version == "12":
+                    physxdevice_dir = os.path.join(external_bin_dir, "win.x86_64.vc120.mt", physx_build_type)
+                elif version == "14":
+                    physxdevice_dir = os.path.join(external_bin_dir, "win.x86_64.vc140.mt", physx_build_type)
+                elif version == "15":
+                    physxdevice_dir = os.path.join(external_bin_dir, "win.x86_64.vc141.mt", physx_build_type)
+                else:
+                    physxdevice_dir = os.path.join(external_bin_dir, "win.x86_64.vc142.mt", physx_build_type)
             else:
                 return
 
-            version = tools.Version(self.settings.compiler.version)
-            if version == "12":
-                external_bin_dir = os.path.join(self._source_subfolder, "physx", "bin", \
-                                                external_bin_subdir + "vc120.mt", physx_build_type)
-                self.copy(pattern="PhysXDevice*.dll", dst="bin", src=external_bin_dir, keep_path=False)
-                self.copy(pattern="PhysXGpu*.dll", dst="bin", src=external_bin_dir, keep_path=False)
-            elif version == "14":
-                external_bin_dir = os.path.join(self._source_subfolder, "physx", "bin", \
-                                                external_bin_subdir + "vc140.mt", physx_build_type)
-                self.copy(pattern="PhysXDevice*.dll", dst="bin", src=external_bin_dir, keep_path=False)
-                self.copy(pattern="PhysXGpu*.dll", dst="bin", src=external_bin_dir, keep_path=False)
-            elif version == "15":
-                external_bin_dir = os.path.join(self._source_subfolder, "physx", "bin", \
-                                                external_bin_subdir + "vc141.mt", physx_build_type)
-                self.copy(pattern="PhysXDevice*.dll", dst="bin", src=external_bin_dir, keep_path=False)
-                external_bin_dir_140 = os.path.join(self._source_subfolder, "physx", "bin", \
-                                                    external_bin_subdir + "vc140.mt", physx_build_type)
-                self.copy(pattern="PhysXGpu*.dll", dst="bin", src=external_bin_dir_140, keep_path=False)
-            elif version >= "16":
-                external_bin_dir = os.path.join(self._source_subfolder, "physx", "bin", \
-                                                external_bin_subdir + "vc142.mt", physx_build_type)
-                self.copy(pattern="PhysXDevice*.dll", dst="bin", src=external_bin_dir, keep_path=False)
-                external_bin_dir_140 = os.path.join(self._source_subfolder, "physx", "bin", \
-                                                    external_bin_subdir + "vc140.mt", physx_build_type)
-                self.copy(pattern="PhysXGpu*.dll", dst="bin", src=external_bin_dir_140, keep_path=False)
+            self.copy(pattern="PhysXDevice*.dll", dst="bin", src=physxdevice_dir, keep_path=False)
+            self.copy(pattern="PhysXGpu*.dll", dst="bin", src=physxgpu_dir, keep_path=False)
 
     def package_info(self):
         self.cpp_info.libs = self._get_cpp_info_ordered_libs()
@@ -300,8 +297,8 @@ class PhysXConan(ConanFile):
             else:
                 missing_order_info.append(real_lib_name)
 
-        # Remove PhysXGpu_32 and PhysXGpu_64 since it is loaded at runtime
-        missing_order_info = [lib for lib in missing_order_info if lib not in ["PhysXGpu_32", "PhysXGpu_64"]]
+        # Remove PhysXGpu* and PhysXDevice* since they are loaded at runtime
+        missing_order_info = [lib for lib in missing_order_info if not lib.startswith(("PhysXGpu", "PhysXDevice"))]
 
         # Flat the list
         return [item for sublist in ordered_libs for item in sublist if sublist] + missing_order_info
