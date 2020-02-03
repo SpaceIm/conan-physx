@@ -284,7 +284,7 @@ class PhysXConan(ConanFile):
         # (- PhysXTask is a dependency of PhysX on Windows).
         lib_list = ["PhysXExtensions", "PhysX", "PhysXVehicle", "PhysXPvdSDK", \
                     "PhysXCooking", "PhysXCommon", "PhysXCharacterKinematic", \
-                    "PhysXFoundation"]
+                    "PhysXFoundation", "PhysXTask"]
 
         # List of lists, so if more than one matches the lib both will be added
         # to the list
@@ -299,6 +299,9 @@ class PhysXConan(ConanFile):
                     break
             else:
                 missing_order_info.append(real_lib_name)
+
+        # Remove PhysXGpu_32 and PhysXGpu_64 since it is loaded at runtime
+        missing_order_info = [lib for lib in missing_order_info if lib not in ["PhysXGpu_32", "PhysXGpu_64"]]
 
         # Flat the list
         return [item for sublist in ordered_libs for item in sublist if sublist] + missing_order_info
