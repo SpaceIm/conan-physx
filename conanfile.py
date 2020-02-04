@@ -88,13 +88,13 @@ class PhysXConan(ConanFile):
             # workaround for permission denied on windows
             time.sleep(10)
             os.rename(extracted_dir, self._source_subfolder)
+
+    def build(self):
         for patch in self.conan_data["patches"][self.version]:
             tools.patch(**patch)
         tools.replace_in_file(os.path.join(self._source_subfolder, "pxshared", "include", "foundation", "PxPreprocessor.h"),
                               "#error Exactly one of NDEBUG and _DEBUG needs to be defined!",
                               "// #error Exactly one of NDEBUG and _DEBUG needs to be defined!")
-
-    def build(self):
         cmake = self._configure_cmake()
         cmake.build()
 
