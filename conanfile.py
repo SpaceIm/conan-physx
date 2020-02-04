@@ -4,32 +4,6 @@ import time
 from conans import ConanFile, CMake, tools
 from conans.errors import ConanInvalidConfiguration
 
-physx_license = """Copyright (c) 2019 NVIDIA Corporation. All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions
-are met:
- * Redistributions of source code must retain the above copyright
-   notice, this list of conditions and the following disclaimer.
- * Redistributions in binary form must reproduce the above copyright
-   notice, this list of conditions and the following disclaimer in the
-   documentation and/or other materials provided with the distribution.
- * Neither the name of NVIDIA CORPORATION nor the names of its
-   contributors may be used to endorse or promote products derived
-   from this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ``AS IS'' AND ANY
-EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
-OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE."""
-
 class PhysXConan(ConanFile):
     name = "physx"
     description = "The NVIDIA PhysX SDK is a scalable multi-platform " \
@@ -206,7 +180,7 @@ class PhysXConan(ConanFile):
         cmake = self._configure_cmake()
         cmake.install()
 
-        tools.save(os.path.join(self.package_folder, "licenses", "LICENSE"), physx_license)
+        tools.save(os.path.join(self.package_folder, "licenses", "LICENSE"), self._get_license())
 
         out_lib_dir = os.path.join(self.package_folder, "lib", self._get_physx_build_type())
         self.copy(pattern="*.a", dst="lib", src=out_lib_dir, keep_path=False)
@@ -219,6 +193,12 @@ class PhysXConan(ConanFile):
         tools.rmdir(os.path.join(self.package_folder, "source"))
 
         self._copy_external_bin()
+
+    def _get_license(self):
+        readme = tools.load(os.path.join(self._source_subfolder, "README.md"))
+        begin = readme.find("Copyright")
+        end = readme.find("\n## Introduction", begin)
+        return readme[begin:end]
 
     def _copy_external_bin(self):
         external_bin_dir = os.path.join(self._source_subfolder, "physx", "bin")
