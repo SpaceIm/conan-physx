@@ -32,6 +32,8 @@ class PhysXConan(ConanFile):
         "fPIC": True,
     }
 
+    _cmake = None
+
     @property
     def _source_subfolder(self):
         return "source_subfolder"
@@ -99,52 +101,55 @@ class PhysXConan(ConanFile):
         cmake.build()
 
     def _configure_cmake(self):
-        cmake = CMake(self, build_type=self._get_physx_build_type())
+        if self._cmake:
+            return self._cmake
+
+        self._cmake = CMake(self, build_type=self._get_physx_build_type())
 
         # Options defined in physx/compiler/public/CMakeLists.txt
-        cmake.definitions["TARGET_BUILD_PLATFORM"] = self._get_target_build_platform()
-        cmake.definitions["PX_BUILDSNIPPETS"] = False
-        cmake.definitions["PX_BUILDPUBLICSAMPLES"] = False
-        cmake.definitions["PX_CMAKE_SUPPRESS_REGENERATION"] = False
+        self._cmake.definitions["TARGET_BUILD_PLATFORM"] = self._get_target_build_platform()
+        self._cmake.definitions["PX_BUILDSNIPPETS"] = False
+        self._cmake.definitions["PX_BUILDPUBLICSAMPLES"] = False
+        self._cmake.definitions["PX_CMAKE_SUPPRESS_REGENERATION"] = False
         cmakemodules_path = os.path.join(
             self._source_subfolder,
             "externals",
             "CMakeModules" if self.settings.os == "Windows" else "cmakemodules"
         )
-        cmake.definitions["CMAKEMODULES_PATH"] = os.path.abspath(cmakemodules_path).replace("\\", "/")
-        cmake.definitions["PHYSX_ROOT_DIR"] = os.path.abspath(os.path.join(self._source_subfolder, "physx")).replace("\\", "/")
+        self._cmake.definitions["CMAKEMODULES_PATH"] = os.path.abspath(cmakemodules_path).replace("\\", "/")
+        self._cmake.definitions["PHYSX_ROOT_DIR"] = os.path.abspath(os.path.join(self._source_subfolder, "physx")).replace("\\", "/")
 
         # Options defined in physx/source/compiler/cmake/CMakeLists.txt
         if self.settings.os in ["Windows", "Android"]:
-            cmake.definitions["PX_SCALAR_MATH"] = not self.options.enable_simd # this value doesn't matter on other os
-        cmake.definitions["PX_GENERATE_STATIC_LIBRARIES"] = not self.options.shared
-        cmake.definitions["PX_EXPORT_LOWLEVEL_PDB"] = False
-        cmake.definitions["PXSHARED_PATH"] = os.path.abspath(os.path.join(self._source_subfolder, "pxshared")).replace("\\", "/")
-        cmake.definitions["PXSHARED_INSTALL_PREFIX"] = self.package_folder.replace("\\", "/")
-        cmake.definitions["PX_GENERATE_SOURCE_DISTRO"] = False
+            self._cmake.definitions["PX_SCALAR_MATH"] = not self.options.enable_simd # this value doesn't matter on other os
+        self._cmake.definitions["PX_GENERATE_STATIC_LIBRARIES"] = not self.options.shared
+        self._cmake.definitions["PX_EXPORT_LOWLEVEL_PDB"] = False
+        self._cmake.definitions["PXSHARED_PATH"] = os.path.abspath(os.path.join(self._source_subfolder, "pxshared")).replace("\\", "/")
+        self._cmake.definitions["PXSHARED_INSTALL_PREFIX"] = self.package_folder.replace("\\", "/")
+        self._cmake.definitions["PX_GENERATE_SOURCE_DISTRO"] = False
 
         # Options defined in externals/cmakemodules/NVidiaBuildOptions.cmake
-        cmake.definitions["NV_APPEND_CONFIG_NAME"] = False
-        cmake.definitions["NV_USE_GAMEWORKS_OUTPUT_DIRS"] = False
+        self._cmake.definitions["NV_APPEND_CONFIG_NAME"] = False
+        self._cmake.definitions["NV_USE_GAMEWORKS_OUTPUT_DIRS"] = False
         if self.settings.compiler == "Visual Studio":
-            cmake.definitions["NV_USE_STATIC_WINCRT"] = str(self.settings.compiler.runtime).startswith("MT")
-            cmake.definitions["NV_USE_DEBUG_WINCRT"] = str(self.settings.compiler.runtime).endswith("d")
-        cmake.definitions["NV_FORCE_64BIT_SUFFIX"] = False
-        cmake.definitions["NV_FORCE_32BIT_SUFFIX"] = False
-        cmake.definitions["PX_ROOT_LIB_DIR"] = os.path.abspath(os.path.join(self.package_folder, "lib")).replace("\\", "/")
+            self._cmake.definitions["NV_USE_STATIC_WINCRT"] = str(self.settings.compiler.runtime).startswith("MT")
+            self._cmake.definitions["NV_USE_DEBUG_WINCRT"] = str(self.settings.compiler.runtime).endswith("d")
+        self._cmake.definitions["NV_FORCE_64BIT_SUFFIX"] = False
+        self._cmake.definitions["NV_FORCE_32BIT_SUFFIX"] = False
+        self._cmake.definitions["PX_ROOT_LIB_DIR"] = os.path.abspath(os.path.join(self.package_folder, "lib")).replace("\\", "/")
 
         if self.settings.os == "Windows":
             # Options defined in physx/source/compiler/cmake/windows/CMakeLists.txt
-            cmake.definitions["PX_COPY_EXTERNAL_DLL"] = False # External dll copy disabled, PhysXDevice dll copy is handled afterward during conan packaging
-            cmake.definitions["PX_FLOAT_POINT_PRECISE_MATH"] = self.options.enable_float_point_precise_math
-            cmake.definitions["PX_USE_NVTX"] = False # Could be controlled by an option if NVTX had a recipe, disabled for the moment
-            cmake.definitions["GPU_DLL_COPIED"] = True # PhysXGpu dll copy disabled, this copy is handled afterward during conan packaging
+            self._cmake.definitions["PX_COPY_EXTERNAL_DLL"] = False # External dll copy disabled, PhysXDevice dll copy is handled afterward during conan packaging
+            self._cmake.definitions["PX_FLOAT_POINT_PRECISE_MATH"] = self.options.enable_float_point_precise_math
+            self._cmake.definitions["PX_USE_NVTX"] = False # Could be controlled by an option if NVTX had a recipe, disabled for the moment
+            self._cmake.definitions["GPU_DLL_COPIED"] = True # PhysXGpu dll copy disabled, this copy is handled afterward during conan packaging
 
             # Options used in physx/source/compiler/cmake/windows/PhysX.cmake
-            cmake.definitions["PX_GENERATE_GPU_PROJECTS"] = False
+            self._cmake.definitions["PX_GENERATE_GPU_PROJECTS"] = False
 
-        cmake.configure(build_folder=self._build_subfolder)
-        return cmake
+        self._cmake.configure(build_folder=self._build_subfolder)
+        return self._cmake
 
     def _get_physx_build_type(self):
         if self.settings.build_type == "Debug":
