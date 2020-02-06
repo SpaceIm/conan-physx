@@ -127,18 +127,8 @@ class PhysXConan(ConanFile):
         cmake.definitions["NV_APPEND_CONFIG_NAME"] = False
         cmake.definitions["NV_USE_GAMEWORKS_OUTPUT_DIRS"] = False
         if self.settings.compiler == "Visual Studio":
-            if self.settings.compiler.runtime == "MT":
-                cmake.definitions["NV_USE_STATIC_WINCRT"] = True
-                cmake.definitions["NV_USE_DEBUG_WINCRT"] = False
-            elif self.settings.compiler.runtime == "MTd":
-                cmake.definitions["NV_USE_STATIC_WINCRT"] = True
-                cmake.definitions["NV_USE_DEBUG_WINCRT"] = True
-            elif self.settings.compiler.runtime == "MDd":
-                cmake.definitions["NV_USE_STATIC_WINCRT"] = False
-                cmake.definitions["NV_USE_DEBUG_WINCRT"] = True
-            else:
-                cmake.definitions["NV_USE_STATIC_WINCRT"] = False
-                cmake.definitions["NV_USE_DEBUG_WINCRT"] = False
+            cmake.definitions["NV_USE_STATIC_WINCRT"] = str(self.settings.compiler.runtime).startswith("MT")
+            cmake.definitions["NV_USE_DEBUG_WINCRT"] = str(self.settings.compiler.runtime).endswith("d")
         cmake.definitions["NV_FORCE_64BIT_SUFFIX"] = False
         cmake.definitions["NV_FORCE_32BIT_SUFFIX"] = False
         cmake.definitions["PX_ROOT_LIB_DIR"] = os.path.abspath(os.path.join(self.package_folder, "lib")).replace("\\", "/")
