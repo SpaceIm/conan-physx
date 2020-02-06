@@ -210,12 +210,12 @@ class PhysXConan(ConanFile):
                 "vc_ver": {"x86": "vc120", "x86_64": "vc140"}.get(str(self.settings.arch))
             }, {
                 "pattern": "PhysXDevice*.dll",
-                "vc_ver": {"12": "vc120", "14": "vc140", "15": "vc141"}.get(compiler_version, "vc142")
+                "vc_ver": {"12": "vc120", "14": "vc140", "15": "vc141"}.get(str(compiler_version), "vc142")
             }]
             for dll_info in dll_info_list:
-                dll_subdir = "win.{0}.{1}.mt".format(physx_arch, dll_info["vc_ver"])
+                dll_subdir = "win.{0}.{1}.mt".format(physx_arch, dll_info.get("vc_ver"))
                 dll_dir = os.path.join(external_bin_dir, dll_subdir, physx_build_type)
-                self.copy(pattern=dll_info["pattern"], dst="bin", src=dll_dir, keep_path=False)
+                self.copy(pattern=dll_info.get("pattern"), dst="bin", src=dll_dir, keep_path=False)
 
     def package_info(self):
         self.cpp_info.libs = self._get_cpp_info_ordered_libs()
