@@ -203,40 +203,24 @@ class PhysXConan(ConanFile):
     def _copy_external_bin(self):
         external_bin_dir = os.path.join(self._source_subfolder, "physx", "bin")
         physx_build_type = self._get_physx_build_type()
+        compiler_version = tools.Version(self.settings.compiler.version)
 
         if self.settings.os == "Linux" and self.settings.arch == "x86_64":
-            physxgpu_dir = os.path.join(external_bin_dir, "linux.clang", physx_build_type)
-            self.copy(pattern="*PhysXGpu*.so", dst="lib", src=physxgpu_dir, keep_path=False)
-        elif self.settings.os == "Windows" and self.settings.compiler == "Visual Studio":
-            version = tools.Version(self.settings.compiler.version)
-            if version < "12":
-                return
-
-            if self.settings.arch == "x86":
-                physxgpu_dir = os.path.join(external_bin_dir, "win.x86_32.vc120.mt", physx_build_type)
-                if version == "12":
-                    physxdevice_dir = os.path.join(external_bin_dir, "win.x86_32.vc120.mt", physx_build_type)
-                elif version == "14":
-                    physxdevice_dir = os.path.join(external_bin_dir, "win.x86_32.vc140.mt", physx_build_type)
-                elif version == "15":
-                    physxdevice_dir = os.path.join(external_bin_dir, "win.x86_32.vc141.mt", physx_build_type)
-                else:
-                    physxdevice_dir = os.path.join(external_bin_dir, "win.x86_32.vc142.mt", physx_build_type)
-            elif self.settings.arch == "x86_64":
-                physxgpu_dir = os.path.join(external_bin_dir, "win.x86_64.vc140.mt", physx_build_type)
-                if version == "12":
-                    physxdevice_dir = os.path.join(external_bin_dir, "win.x86_64.vc120.mt", physx_build_type)
-                elif version == "14":
-                    physxdevice_dir = os.path.join(external_bin_dir, "win.x86_64.vc140.mt", physx_build_type)
-                elif version == "15":
-                    physxdevice_dir = os.path.join(external_bin_dir, "win.x86_64.vc141.mt", physx_build_type)
-                else:
-                    physxdevice_dir = os.path.join(external_bin_dir, "win.x86_64.vc142.mt", physx_build_type)
-            else:
-                return
-
-            self.copy(pattern="PhysXDevice*.dll", dst="bin", src=physxdevice_dir, keep_path=False)
-            self.copy(pattern="PhysXGpu*.dll", dst="bin", src=physxgpu_dir, keep_path=False)
+            physx_gpu_dir = os.path.join(external_bin_dir, "linux.clang", physx_build_type)
+            self.copy(pattern="*PhysXGpu*.so", dst="lib", src=physx_gpu_dir, keep_path=False)
+        elif self.settings.os == "Windows" and self.settings.compiler == "Visual Studio" and compiler_version >= "12":
+            physx_arch = {"x86": "x86_32", "x86_64": "x86_64"}.get(str(self.settings.arch))
+            dll_info_list = [{
+                "pattern": "PhysXGpu*.dll",
+                "vc_ver": {"x86": "vc120", "x86_64": "vc140"}.get(str(self.settings.arch))
+            }, {
+                "pattern": "PhysXDevice*.dll",
+                "vc_ver": {"12": "vc120", "14": "vc140", "15": "vc141"}.get(compiler_version, "vc142")
+            }]
+            for dll_info in dll_info_list:
+                dll_subdir = "win.{0}.{1}.mt".format(physx_arch, dll_info["vc_ver"])
+                dll_dir = os.path.join(external_bin_dir, dll_subdir, physx_build_type)
+                self.copy(pattern=dll_info["pattern"], dst="bin", src=dll_dir, keep_path=False)
 
     def package_info(self):
         self.cpp_info.libs = self._get_cpp_info_ordered_libs()
@@ -247,8 +231,8 @@ class PhysXConan(ConanFile):
         elif self.settings.os == "Android":
             self.cpp_info.system_libs.append("log")
 
-        self.cpp_info.names['cmake_find_package'] = 'PhysX'
-        self.cpp_info.names['cmake_find_package_multi'] = 'PhysX'
+        self.cpp_info.names["cmake_find_package"] = "PhysX"
+        self.cpp_info.names["cmake_find_package_multi"] = "PhysX"
 
     def _get_cpp_info_ordered_libs(self):
         gen_libs = tools.collect_libs(self)
