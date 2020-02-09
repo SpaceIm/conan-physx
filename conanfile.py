@@ -52,16 +52,16 @@ class PhysXConan(ConanFile):
             del self.options.enable_simd
 
     def configure(self):
-        os = str(self.settings.os)
+        os = self.settings.os
         if os not in ["Windows", "Linux", "Macos", "Android", "iOS"]:
             raise ConanInvalidConfiguration("{0} {1} is not supported on {2}".format(self.name, self.version, os))
 
-        build_type = str(self.settings.build_type)
+        build_type = self.settings.build_type
         if build_type not in ["Debug", "RelWithDebInfo", "Release"]:
             raise ConanInvalidConfiguration("{0} {1} does not support {2} build type".format(self.name, self.version,
                                                                                              build_type))
 
-        compiler = str(self.settings.compiler)
+        compiler = self.settings.compiler
         if os == "Windows" and compiler != "Visual Studio":
             raise ConanInvalidConfiguration("{0} {1} does not support {2} on {3}".format(self.name, self.version,
                                                                                          compiler, os))
@@ -70,8 +70,7 @@ class PhysXConan(ConanFile):
             if tools.Version(self.settings.compiler.version) < 9:
                 raise ConanInvalidConfiguration("{0} {1} does not support Visual Studio < 9".format(self.name,
                                                                                                     self.version))
-
-            runtime = str(self.settings.compiler.runtime)
+            runtime = self.settings.compiler.runtime
             if build_type == "Debug":
                 if runtime not in ["MDd", "MTd"]:
                     raise ConanInvalidConfiguration("Visual Studio Compiler runtime MDd or MTd " \
