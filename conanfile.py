@@ -91,13 +91,16 @@ class PhysXConan(ConanFile):
             os.rename(extracted_dir, self._source_subfolder)
 
     def build(self):
+        self._patch_sources()
+        cmake = self._configure_cmake()
+        cmake.build()
+
+    def _patch_sources(self):
         for patch in self.conan_data["patches"][self.version]:
             tools.patch(**patch)
         tools.replace_in_file(os.path.join(self._source_subfolder, "pxshared", "include", "foundation", "PxPreprocessor.h"),
                               "#error Exactly one of NDEBUG and _DEBUG needs to be defined!",
                               "// #error Exactly one of NDEBUG and _DEBUG needs to be defined!")
-        cmake = self._configure_cmake()
-        cmake.build()
 
     def _configure_cmake(self):
         if self._cmake:
