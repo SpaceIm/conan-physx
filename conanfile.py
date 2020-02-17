@@ -19,17 +19,17 @@ class PhysXConan(ConanFile):
     short_paths = True
     options = {
         "shared": [True, False],
+        "fPIC": [True, False],
         "release_build_type": ["profile", "release"],
         "enable_simd": [True, False],
-        "enable_float_point_precise_math": [True, False],
-        "fPIC": [True, False],
+        "enable_float_point_precise_math": [True, False]
     }
     default_options = {
         "shared": True,
+        "fPIC": True,
         "release_build_type": "release",
         "enable_simd": True,
-        "enable_float_point_precise_math": False,
-        "fPIC": True,
+        "enable_float_point_precise_math": False
     }
 
     _cmake = None
@@ -43,7 +43,8 @@ class PhysXConan(ConanFile):
         return "build_subfolder"
 
     def config_options(self):
-        del self.options.fPIC # fpic is managed by physx build process (in physx/source/compiler/cmake/CMakeLists.txt)
+        if self.settings.os == "Windows":
+            del self.options.fPIC
         if self.settings.build_type != "Release":
             del self.options.release_build_type
         if self.settings.os != "Windows":
@@ -52,6 +53,8 @@ class PhysXConan(ConanFile):
             del self.options.enable_simd
 
     def configure(self):
+        if self.options.shared:
+            del self.options.fPIC
         the_os = self.settings.os
         if the_os not in ["Windows", "Linux", "Macos", "Android", "iOS"]:
             raise ConanInvalidConfiguration("{0} {1} is not supported on {2}".format(self.name, self.version, the_os))
@@ -98,11 +101,46 @@ class PhysXConan(ConanFile):
                               "#error Exactly one of NDEBUG and _DEBUG needs to be defined!",
                               "// #error Exactly one of NDEBUG and _DEBUG needs to be defined!")
 
+        # Comment out hard-coded PIC settings
+        tools.replace_in_file(os.path.join(self._source_subfolder, "physx", "source", "compiler", "cmake", "CMakeLists.txt"),
+                              "SET(CMAKE_POSITION_INDEPENDENT_CODE ON)",
+                              "SET(CMAKE_POSITION_INDEPENDENT_CODE ${PHYSX_CONAN_FPIC})")
+        for cmake_file in (
+            "FastXml.cmake",
+            os.path.join("linux", "LowLevel.cmake"),
+            os.path.join("linux", "PhysXCharacterKinematic.cmake"),
+            "LowLevel.cmake",
+            "LowLevelAABB.cmake",
+            "LowLevelDynamics.cmake",
+            "PhysX.cmake",
+            "PhysXCharacterKinematic.cmake",
+            "PhysXCommon.cmake",
+            "PhysXCooking.cmake",
+            "PhysXExtensions.cmake",
+            "PhysXFoundation.cmake",
+            "PhysXPvdSDK.cmake",
+            "PhysXTask.cmake",
+            "PhysXVehicle.cmake",
+            "SceneQuery.cmake",
+            "SimulationController.cmake",
+        ):
+            target, _ = os.path.splitext(os.path.basename(cmake_file))
+            tools.replace_in_file(os.path.join(self._source_subfolder, "physx", "source", "compiler", "cmake", cmake_file),
+                                  "SET_TARGET_PROPERTIES({} PROPERTIES POSITION_INDEPENDENT_CODE TRUE)".format(target),
+                                  "SET_TARGET_PROPERTIES({} PROPERTIES POSITION_INDEPENDENT_CODE ${{PHYSX_CONAN_FPIC}})".format(target))
+
+        # No error for warnings
+        for cmake_os in ("linux", "mac", "android", "ios"):
+            tools.replace_in_file(os.path.join(self._source_subfolder, "physx", "source", "compiler", "cmake", cmake_os, "CMakeLists.txt"),
+                                  "-Werror", "")
+
     def _configure_cmake(self):
         if self._cmake:
             return self._cmake
 
         self._cmake = CMake(self, build_type=self._get_physx_build_type())
+
+        self._cmake.definitions["PHYSX_CONAN_FPIC"] = "ON" if self.options["physx"].shared or "fPIC" not in self.options["physx"].fields or ("fPIC" in self.options["physx"].fields and self.options["physx"].fPIC) else "OFF"
 
         # Options defined in physx/compiler/public/CMakeLists.txt
         self._cmake.definitions["TARGET_BUILD_PLATFORM"] = self._get_target_build_platform()
