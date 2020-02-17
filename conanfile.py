@@ -154,15 +154,11 @@ class PhysXConan(ConanFile):
         return self._cmake
 
     def _get_physx_build_type(self):
-        if self.settings.build_type == "Debug":
-            return "debug"
-        elif self.settings.build_type == "RelWithDebInfo":
-            return "checked"
-        elif self.settings.build_type == "Release":
-            if self.options.release_build_type == "profile":
-                return "profile"
-            else:
-                return "release"
+        return {
+            "Debug": "debug",
+            "RelWithDebInfo": "checked",
+            "Release": "profile" if self.options.release_build_type == "profile" else "release"
+        }.get(str(self.settings.build_type))
 
     def _get_target_build_platform(self):
         return {
