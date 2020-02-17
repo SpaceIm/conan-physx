@@ -16,6 +16,7 @@ class PhysXConan(ConanFile):
     exports_sources = ["CMakeLists.txt", "patches/**"]
     generators = "cmake"
     settings = "os", "compiler", "arch", "build_type"
+    short_paths = True
     options = {
         "shared": [True, False],
         "release_build_type": ["profile", "release"],
