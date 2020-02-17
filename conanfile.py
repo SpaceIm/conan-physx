@@ -70,14 +70,10 @@ class PhysXConan(ConanFile):
             if tools.Version(self.settings.compiler.version) < 9:
                 raise ConanInvalidConfiguration("{0} {1} does not support Visual Studio < 9".format(self.name,
                                                                                                     self.version))
-            runtime = self.settings.compiler.runtime
-            if build_type == "Debug":
-                if runtime not in ["MDd", "MTd"]:
-                    raise ConanInvalidConfiguration("Visual Studio Compiler runtime MDd or MTd " \
-                                                    "is required for {0} build type".format(build_type))
-            elif runtime not in ["MD", "MT"]:
-                raise ConanInvalidConfiguration("Visual Studio Compiler runtime MD or MT " \
-                                                "is required for {0} build type".format(build_type))
+            allowed_runtimes = ["MDd", "MTd"] if build_type == "Debug" else ["MD", "MT"]
+            if self.settings.compiler.runtime not in allowed_runtimes:
+                raise ConanInvalidConfiguration("Visual Studio Compiler runtime {0}" \
+                                                "is required for {1} build type".format(allowed_runtimes, build_type))
 
     def source(self):
         tools.get(**self.conan_data["sources"][self.version])
