@@ -53,8 +53,6 @@ class PhysXConan(ConanFile):
             del self.options.enable_simd
 
     def configure(self):
-        if self.options.shared:
-            del self.options.fPIC
         the_os = self.settings.os
         if the_os not in ["Windows", "Linux", "Macos", "Android", "iOS"]:
             raise ConanInvalidConfiguration("{0} {1} is not supported on {2}".format(self.name, self.version, the_os))
@@ -97,18 +95,22 @@ class PhysXConan(ConanFile):
     def _patch_sources(self):
         for patch in self.conan_data["patches"][self.version]:
             tools.patch(**patch)
+
+        # There is no reason to force consumer of PhysX public headers to use one of
+        # NDEBUG or _DEBUG, since none of them relies on NDEBUG or _DEBUG
         tools.replace_in_file(os.path.join(self._source_subfolder, "pxshared", "include", "foundation", "PxPreprocessor.h"),
                               "#error Exactly one of NDEBUG and _DEBUG needs to be defined!",
                               "// #error Exactly one of NDEBUG and _DEBUG needs to be defined!")
 
-        # Comment out hard-coded PIC settings
-        tools.replace_in_file(os.path.join(self._source_subfolder, "physx", "source", "compiler", "cmake", "CMakeLists.txt"),
-                              "SET(CMAKE_POSITION_INDEPENDENT_CODE ON)",
-                              "SET(CMAKE_POSITION_INDEPENDENT_CODE ${PHYSX_CONAN_FPIC})")
+        physx_source_cmake_dir = os.path.join(self._source_subfolder, "physx", "source", "compiler", "cmake")
+
+        # Remove global and specifics hard-coded PIC settings
+        # (conan's CMake build helper properly sets CMAKE_POSITION_INDEPENDENT_CODE
+        # depending on options)
+        tools.replace_in_file(os.path.join(physx_source_cmake_dir, "CMakeLists.txt"),
+                              "SET(CMAKE_POSITION_INDEPENDENT_CODE ON)", "")
         for cmake_file in (
             "FastXml.cmake",
-            os.path.join("linux", "LowLevel.cmake"),
-            os.path.join("linux", "PhysXCharacterKinematic.cmake"),
             "LowLevel.cmake",
             "LowLevelAABB.cmake",
             "LowLevelDynamics.cmake",
@@ -125,13 +127,13 @@ class PhysXConan(ConanFile):
             "SimulationController.cmake",
         ):
             target, _ = os.path.splitext(os.path.basename(cmake_file))
-            tools.replace_in_file(os.path.join(self._source_subfolder, "physx", "source", "compiler", "cmake", cmake_file),
+            tools.replace_in_file(os.path.join(physx_source_cmake_dir, cmake_file),
                                   "SET_TARGET_PROPERTIES({} PROPERTIES POSITION_INDEPENDENT_CODE TRUE)".format(target),
-                                  "SET_TARGET_PROPERTIES({} PROPERTIES POSITION_INDEPENDENT_CODE ${{PHYSX_CONAN_FPIC}})".format(target))
+                                  "")
 
-        # No error for warnings
+        # No error for compiler warnings
         for cmake_os in ("linux", "mac", "android", "ios"):
-            tools.replace_in_file(os.path.join(self._source_subfolder, "physx", "source", "compiler", "cmake", cmake_os, "CMakeLists.txt"),
+            tools.replace_in_file(os.path.join(physx_source_cmake_dir, cmake_os, "CMakeLists.txt"),
                                   "-Werror", "")
 
     def _configure_cmake(self):
@@ -139,8 +141,6 @@ class PhysXConan(ConanFile):
             return self._cmake
 
         self._cmake = CMake(self, build_type=self._get_physx_build_type())
-
-        self._cmake.definitions["PHYSX_CONAN_FPIC"] = "ON" if self.options["physx"].shared or "fPIC" not in self.options["physx"].fields or ("fPIC" in self.options["physx"].fields and self.options["physx"].fPIC) else "OFF"
 
         # Options defined in physx/compiler/public/CMakeLists.txt
         self._cmake.definitions["TARGET_BUILD_PLATFORM"] = self._get_target_build_platform()
