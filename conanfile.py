@@ -277,7 +277,7 @@ class PhysXConan(ConanFile):
         # - PhysXCommon is a dependency of PhysX and PhysXCooking.
         # - PhysXFoundation is a dependency of PhysXExtensions, PhysX, PhysXVehicle,
         #   PhysXPvdSDK, PhysXCooking, PhysXCommon and PhysXCharacterKinematic.
-        # (- PhysXTask is a dependency of PhysX on Windows).
+        # (- PhysXTask is a dependency of PhysX on Windows if shared, order of this one doesn't really matter).
         lib_list = ["PhysXExtensions", "PhysX", "PhysXVehicle", "PhysXPvdSDK", \
                     "PhysXCooking", "PhysXCommon", "PhysXCharacterKinematic", \
                     "PhysXFoundation", "PhysXTask"]
