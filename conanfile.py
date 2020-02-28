@@ -10,7 +10,7 @@ class PhysXConan(ConanFile):
                   "physics solution supporting a wide range of devices, " \
                   "from smartphones to high-end multicore CPUs and GPUs."
     license = "BSD-3-Clause"
-    topics = ("conan", "PhysX", "physics")
+    topics = ("conan", "PhysX", "physics", "engine", "simulation", "cuda")
     homepage = "https://github.com/NVIDIAGameWorks/PhysX"
     url = "https://github.com/conan-io/conan-center-index"
     exports_sources = ["CMakeLists.txt", "patches/**"]
