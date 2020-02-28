@@ -90,7 +90,7 @@ class PhysXConan(ConanFile):
         shutil.copy(os.path.join(self.source_folder, "CMakeLists.txt"), "CMakeLists.txt")
 
         # Copy patches
-        if "patches" in self.conan_data:
+        if "patches" in self.conan_data and self.version in self.conan_data["patches"]:
             if not os.path.exists("patches"):
                 os.mkdir("patches")
             for patch in self.conan_data["patches"][self.version]:
