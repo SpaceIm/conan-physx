@@ -54,24 +54,20 @@ class PhysXConan(ConanFile):
             del self.options.enable_simd
 
     def configure(self):
-        the_os = self.settings.os
-        if the_os not in ["Windows", "Linux", "Macos", "Android", "iOS"]:
-            raise ConanInvalidConfiguration("{0} {1} is not supported on {2}".format(self.name, self.version, the_os))
+        if self.settings.os not in ["Windows", "Linux", "Macos", "Android", "iOS"]:
+            raise ConanInvalidConfiguration("Current os is not supported")
 
         build_type = self.settings.build_type
         if build_type not in ["Debug", "RelWithDebInfo", "Release"]:
-            raise ConanInvalidConfiguration("{0} {1} does not support {2} build type".format(self.name, self.version,
-                                                                                             build_type))
+            raise ConanInvalidConfiguration("Current build_type is not supported")
 
-        compiler = self.settings.compiler
-        if the_os == "Windows" and compiler != "Visual Studio":
-            raise ConanInvalidConfiguration("{0} {1} does not support {2} on {3}".format(self.name, self.version,
-                                                                                         compiler, the_os))
+        if self.settings.os == "Windows" and self.settings.compiler != "Visual Studio":
+            raise ConanInvalidConfiguration("{} only supports Visual Studio on Windows".format(self.name))
 
-        if compiler == "Visual Studio":
+        if self.settings.compiler == "Visual Studio":
             if tools.Version(self.settings.compiler.version) < 9:
-                raise ConanInvalidConfiguration("{0} {1} does not support Visual Studio < 9".format(self.name,
-                                                                                                    self.version))
+                raise ConanInvalidConfiguration("Visual Studio versions < 9 are not supported")
+
             allowed_runtimes = ["MDd", "MTd"] if build_type == "Debug" else ["MD", "MT"]
             if self.settings.compiler.runtime not in allowed_runtimes:
                 raise ConanInvalidConfiguration("Visual Studio Compiler runtime {0}" \
