@@ -27,7 +27,7 @@ class PhysXConan(ConanFile):
         "enable_float_point_precise_math": [True, False]
     }
     default_options = {
-        "shared": True,
+        "shared": False,
         "fPIC": True,
         "release_build_type": "release",
         "enable_simd": True,
