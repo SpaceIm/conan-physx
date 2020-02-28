@@ -96,23 +96,24 @@ class PhysXConan(ConanFile):
         cmake.build()
 
     def _copy_sources(self):
-        # Copy CMakeLists
+        # Copy CMakeLists wrapper
         shutil.copy(os.path.join(self.source_folder, "CMakeLists.txt"), "CMakeLists.txt")
 
         # Copy patches
-        for patch in self.conan_data["patches"][self.version]:
+        if "patches" in self.conan_data:
             if not os.path.exists("patches"):
                 os.mkdir("patches")
-            shutil.copy(os.path.join(self.source_folder, patch["patch_file"]),
-                        "patches")
+            for patch in self.conan_data["patches"][self.version]:
+                shutil.copy(os.path.join(self.source_folder, patch["patch_file"]),
+                            "patches")
 
         # Copy PhysX source code
         subfolders_to_copy = [
-           "pxshared",
-           os.path.join("externals", self._get_cmakemodules_subfolder()),
-           os.path.join("physx", "compiler"),
-           os.path.join("physx", "include"),
-           os.path.join("physx", "source")
+            "pxshared",
+            os.path.join("externals", self._get_cmakemodules_subfolder()),
+            os.path.join("physx", "compiler"),
+            os.path.join("physx", "include"),
+            os.path.join("physx", "source")
         ]
         for subfolder in subfolders_to_copy:
             shutil.copytree(os.path.join(self.source_folder, self._source_subfolder, subfolder),
@@ -239,21 +240,17 @@ class PhysXConan(ConanFile):
         }.get(str(self.settings.os))
 
     def package(self):
+        tools.save(os.path.join(self.package_folder, "licenses", "LICENSE"), self._get_license())
         cmake = self._configure_cmake()
         cmake.install()
-
-        tools.save(os.path.join(self.package_folder, "licenses", "LICENSE"), self._get_license())
-
         out_lib_dir = os.path.join(self.package_folder, "lib", self._get_physx_build_type())
         self.copy(pattern="*.a", dst="lib", src=out_lib_dir, keep_path=False)
         self.copy(pattern="*.so", dst="lib", src=out_lib_dir, keep_path=False)
         self.copy(pattern="*.dylib*", dst="lib", src=out_lib_dir, keep_path=False)
         self.copy(pattern="*.lib", dst="lib", src=out_lib_dir, keep_path=False)
         self.copy(pattern="*.dll", dst="bin", src=out_lib_dir, keep_path=False)
-
         tools.rmdir(out_lib_dir)
         tools.rmdir(os.path.join(self.package_folder, "source"))
-
         self._copy_external_bin()
 
     def _get_license(self):
@@ -290,12 +287,10 @@ class PhysXConan(ConanFile):
     def package_info(self):
         self.cpp_info.libs = self._get_cpp_info_ordered_libs()
         self.output.info("LIBRARIES: %s" % self.cpp_info.libs)
-
         if self.settings.os == "Linux":
             self.cpp_info.system_libs.extend(["dl", "pthread", "rt"])
         elif self.settings.os == "Android":
             self.cpp_info.system_libs.append("log")
-
         self.cpp_info.names["cmake_find_package"] = "PhysX"
         self.cpp_info.names["cmake_find_package_multi"] = "PhysX"
 
