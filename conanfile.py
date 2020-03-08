@@ -278,7 +278,9 @@ class PhysXConan(ConanFile):
         self.cpp_info.libs = self._get_cpp_info_ordered_libs()
         self.output.info("LIBRARIES: %s" % self.cpp_info.libs)
         if self.settings.os == "Linux":
-            self.cpp_info.system_libs.extend(["dl", "pthread", "rt"])
+            self.cpp_info.system_libs.extend(["pthread", "rt"])
+            if self.settings.arch == "x86_64":
+                self.cpp_info.system_libs.append("dl")
         elif self.settings.os == "Android":
             self.cpp_info.system_libs.append("log")
         self.cpp_info.names["cmake_find_package"] = "PhysX"
