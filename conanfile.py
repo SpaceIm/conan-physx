@@ -275,16 +275,16 @@ class PhysXConan(ConanFile):
                 self.copy(pattern=dll_info.get("pattern"), dst="bin", src=dll_dir, keep_path=False)
 
     def package_info(self):
+        self.cpp_info.names["cmake_find_package"] = "PhysX"
+        self.cpp_info.names["cmake_find_package_multi"] = "PhysX"
         self.cpp_info.libs = self._get_cpp_info_ordered_libs()
         self.output.info("LIBRARIES: %s" % self.cpp_info.libs)
         if self.settings.os == "Linux":
-            self.cpp_info.system_libs.extend(["m", "pthread", "rt"])
+            self.cpp_info.system_libs.extend(["m", "pthread", "rt"]) # m for PhysXCommon, PhysXCooking, PhysXFoundation and PhysX - rt for PhysXFoundation
             if self.settings.arch == "x86_64":
-                self.cpp_info.system_libs.append("dl")
+                self.cpp_info.system_libs.append("dl") # dl for PhysX
         elif self.settings.os == "Android":
             self.cpp_info.system_libs.append("log")
-        self.cpp_info.names["cmake_find_package"] = "PhysX"
-        self.cpp_info.names["cmake_find_package_multi"] = "PhysX"
 
     def _get_cpp_info_ordered_libs(self):
         gen_libs = tools.collect_libs(self)
