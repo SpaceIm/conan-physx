@@ -116,7 +116,7 @@ class PhysXConan(ConanFile):
         return "CMakeModules" if self.settings.os == "Windows" else "cmakemodules"
 
     def _patch_sources(self):
-        for patch in self.conan_data["patches"][self.version]:
+        for patch in self.conan_data.get("patches", {}).get(self.version, []):
             tools.patch(**patch)
 
         # There is no reason to force consumer of PhysX public headers to use one of
