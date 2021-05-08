@@ -1,8 +1,10 @@
+from conans import ConanFile, CMake, tools
+from conans.errors import ConanInvalidConfiguration
 import os
 import shutil
 
-from conans import ConanFile, CMake, tools
-from conans.errors import ConanInvalidConfiguration
+required_conan_version = ">=1.33.0"
+
 
 class PhysXConan(ConanFile):
     name = "physx"
@@ -77,10 +79,8 @@ class PhysXConan(ConanFile):
                                                 "is required for {1} build type".format(allowed_runtimes, build_type))
 
     def source(self):
-        tools.get(**self.conan_data["sources"][self.version])
-        url = self.conan_data["sources"][self.version]["url"]
-        extracted_dir = "PhysX-" + os.path.splitext(os.path.basename(url))[0]
-        os.rename(extracted_dir, self._source_subfolder)
+        tools.get(**self.conan_data["sources"][self.version],
+                  destination=self._source_subfolder, strip_root=True)
 
     def build(self):
         self._copy_sources()
